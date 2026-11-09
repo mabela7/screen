@@ -1,0 +1,63 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capture Watch</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo">CW</div>
+      <div>
+        <h1>Capture Watch</h1>
+        <p>Browser capture monitoring</p>
+      </div>
+      <span id="status">CONNECTING</span>
+    </header>
+
+    <section class="hero">
+      <div class="orb">◉</div>
+      <h2 id="monitor">Monitoring active</h2>
+      <p id="description">
+        Waiting for browser events.
+      </p>
+    </section>
+
+    <section class="stats">
+      <div>
+        <small>Events reported</small>
+        <strong id="events">0</strong>
+      </div>
+      <div>
+        <small>Session duration</small>
+        <strong id="duration">0s</strong>
+      </div>
+    </section>
+
+    <section class="controls">
+      <h3>Screen sharing test</h3>
+      <button id="share">Start screen sharing</button>
+      <p class="hint">
+        This asks the user for permission to share a screen.
+        It does not detect independent system recordings.
+      </p>
+    </section>
+
+    <section class="logs">
+      <h3>Activity log</h3>
+      <div id="logs">
+        <p class="empty">No events yet.</p>
+      </div>
+    </section>
+
+    <footer>
+      Capture Watch · Browser monitoring only
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
