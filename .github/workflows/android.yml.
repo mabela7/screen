@@ -3,109 +3,86 @@ name: Build Capture Watch APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
-
-permissions:
-  contents: read
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Set up Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
-      - name: Create Capacitor project files
+      - name: Install Capacitor
         run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
           mkdir -p www
           cp index.html app.js www/
-          cat > package.json <<'EOF'
-          {
-            "name": "capture-watch",
-            "version": "1.0.0",
-            "private": true,
-            "description": "Android screenshot event monitor",
-            "scripts": {
-              "build": "echo Web assets ready"
-            },
-            "dependencies": {
-              "@capacitor/core": "6.2.1",
-              "@capacitor/android": "6.2.1"
-            },
-            "devDependencies": {
-              "@capacitor/cli": "6.2.1"
-            }
-          }
-          EOF
-          cat > capacitor.config.json <<'EOF'
-          {
-            "appId": "com.capturewatch.app",
-            "appName": "Capture Watch",
-            "webDir": "www"
-          }
-          EOF
-          npm install
+          npx cap init "Capture Watch" "com.capturewatch.app" --web-dir www
           npx cap add android
 
-      - name: Add Android screenshot callback
+      - name: Add screenshot detection
         run: |
           cat > android/app/src/main/java/com/capturewatch/app/MainActivity.java <<'EOF'
           package com.capturewatch.app;
 
-          import android.os.Build;
           import android.os.Bundle;
           import android.app.Activity;
-          import android.webkit.WebView;
+          import android.view.WindowManager;
+          import android.os.Build;
+          import android.util.Log;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
-              private Activity.ScreenCaptureCallback captureCallback;
+              private Activity.ScreenCaptureCallback callback;
 
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
                   if (Build.VERSION.SDK_INT >= 34) {
-                      captureCallback = () -> {
-                          runOnUiThread(() -> {
-                              if (getBridge() != null) {
-                                  WebView webView = getBridge().getWebView();
-                                  if (webView != null) {
-                                      webView.evaluateJavascript(
-                                          "window.dispatchEvent(new CustomEvent('native-screenshot',{detail:{source:'Android Activity.ScreenCaptureCallback',androidApi:34}}));",
-                                          null
-                                      );
-                                  }
-                              }
-                          });
-                      };
-                      registerScreenCaptureCallback(getMainExecutor(), captureCallback);
+                      callback = () -> runOnUiThread(() ->
+                          getBridge().getWebView().evaluateJavascript(
+                              "document.dispatchEvent(new Event('native-screenshot'))", null
+                          )
+                      );
+
+                      getWindow().getDecorView().post(() ->
+                          getSystemService(android.app.Activity.class)
+                      );
+
+                      if (Build.VERSION.SDK_INT >= 34) {
+                          registerScreenCaptureCallback(
+                              getMainExecutor(), callback
+                          );
+                      }
                   }
               }
 
               @Override
               protected void onDestroy() {
-                  if (Build.VERSION.SDK_INT >= 34 && captureCallback != null) {
-                      unregisterScreenCaptureCallback(captureCallback);
+                  if (Build.VERSION.SDK_INT >= 34 && callback != null) {
+                      unregisterScreenCaptureCallback(callback);
                   }
                   super.onDestroy();
               }
           }
           EOF
-          npx cap sync android
 
-      - name: Build debug APK
+      - name: Build APK
         run: |
           cd android
           chmod +x gradlew
@@ -116,5 +93,3 @@ jobs:
         with:
           name: capture-watch-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-                
